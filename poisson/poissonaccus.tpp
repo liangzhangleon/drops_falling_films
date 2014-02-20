@@ -23,7 +23,6 @@
 */
 namespace DROPS
 {
-
 /// - Base Accumulator for scalar P1 finite elements
 
 template<class Coeff,template <class T=double> class QuadCL>
@@ -229,7 +228,19 @@ void SourceAccumulator_P1CL<Coeff,QuadCL>::update_rhsintegrals(const TetraCL& si
     vel= Coeff_.ALEVelocity;
   else
     vel= Coeff_.Vel;
-  double supg_sta_coeff = supg_.Sta_Coeff( vel(GetBaryCenter(sit), t), Coeff_.alpha(GetBaryCenter(sit), t));
+  
+  Point3DCL VertVel[4];
+  for(int i=0; i<4; ++i)
+  {
+    VertVel[i] = vel(sit.GetVertex(i)->GetCoord(), t);
+  }
+  int index=0;
+  for(int i=1; i<4; ++i)
+  {
+    if(VertVel[i].norm()> VertVel[index].norm())
+      index = i;
+  }
+  double supg_sta_coeff = supg_.Sta_Coeff( VertVel[index], Coeff_.alpha(GetBaryCenter(sit), t));  //SUPG term
   for(int i=0; i<4; ++i)    // assemble row i
     if (UnknownIdx[i]!= NoIdx)  // vertex i is not on a Dirichlet boundary
       {
@@ -316,7 +327,18 @@ void StiffnessAccumulator_P1CL<Coeff,QuadCL>::local_setup (const TetraCL& sit)
       for(int i=0; i<4; ++i)
 	U_Grad[i]=dot( u, QuadCL<Point3DCL>( G[i]));
     }
-    double supg_sta_coeff = supg_.Sta_Coeff( vel(GetBaryCenter(sit), t), Coeff_.alpha(GetBaryCenter(sit), t));
+    Point3DCL VertVel[4];
+    for(int i=0; i<4; ++i)
+    {
+      VertVel[i] = vel(sit.GetVertex(i)->GetCoord(), t);
+    }
+    int index=0;
+    for(int i=1; i<4; ++i)
+    {
+      if(VertVel[i].norm()> VertVel[index].norm())
+        index = i;
+    }
+    double supg_sta_coeff = supg_.Sta_Coeff( VertVel[index], Coeff_.alpha(GetBaryCenter(sit), t));  //SUPG term
     for(int i=0; i<4; ++i)
     {
         for(int j=0; j<4; ++j)
@@ -406,7 +428,18 @@ void MassAccumulator_P1CL<Coeff,QuadCL>::local_setup (const TetraCL& sit)
         for(int i=0; i<4; i++)
             U_Grad[i]=dot(u, QuadCL<Point3DCL>(G[i]));
     }
-    double supg_sta_coeff = supg_.Sta_Coeff( vel(GetBaryCenter(sit), t), Coeff_.alpha(GetBaryCenter(sit), t));  //SUPG term
+    Point3DCL VertVel[4];
+    for(int i=0; i<4; ++i)
+    {
+      VertVel[i] = vel(sit.GetVertex(i)->GetCoord(), t);
+    }
+    int index=0;
+    for(int i=1; i<4; ++i)
+    {
+      if(VertVel[i].norm()> VertVel[index].norm())
+        index = i;
+    }
+    double supg_sta_coeff = supg_.Sta_Coeff( VertVel[index], Coeff_.alpha(GetBaryCenter(sit), t));  //SUPG term
     for(int i=0; i<4; ++i)
     {
       for(int j=0; j<4; ++j)
