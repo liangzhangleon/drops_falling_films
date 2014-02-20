@@ -25,6 +25,7 @@
 #ifndef DROPS_POI_INTEGRTIME_H
 #define DROPS_POI_INTEGRTIME_H
 
+#include "num/poissonsolverfactory.h"
 #include "misc/problem.h"
 #include "poisson/poisson.h"
 
@@ -60,13 +61,15 @@ class InstatPoissonThetaSchemeCL
     VecDescCL *_cplM, *_old_cplM;       // couplings with mass matrix M
     VecDescCL *_cplU;                   // couplings with convection matrix U
     VectorCL  _rhs;
-    VecDescCL *_new_cplA, *_new_b;
+    //VecDescCL *_new_cplA, *_new_b; 
+    //VectorCL  _Zeta;                    // one help sequence for generalized theta scheme
     MLMatrixCL  _Lmat;                  // M + theta*dt*nu*A  = linear part
 
     double _theta, _dt;
     bool   _Convection;
     bool   _supg;
     bool   _ale;
+    //bool   _firstStep;     //for generalized scheme
     instat_scalar_fun_ptr _presol;
     instat_scalar_fun_ptr _delta;
 
@@ -78,8 +81,10 @@ class InstatPoissonThetaSchemeCL
       _cplA( new VecDescCL), _old_cplA( new VecDescCL),
       _cplM( new VecDescCL), _old_cplM( new VecDescCL),
       _cplU( new VecDescCL),
-      _rhs( Poisson.b.RowIdx->NumUnknowns()),
-      _new_cplA( new VecDescCL), _new_b( new VecDescCL), _theta( _param.get<double>("Time.Theta")),
+      _rhs( Poisson.b.RowIdx->NumUnknowns()), 
+      //_Zeta( Poisson.b.RowIdx->NumUnknowns()),
+      //_new_cplA( new VecDescCL), _new_b( new VecDescCL),
+      _theta( _param.get<double>("Time.Theta")),
       _Convection(_param.get<int>("PoissonCoeff.Convection")), _supg(_param.get<int>("Stabilization.SUPG")),
       _ale(_param.get<int>("ALE.wavy")),
       _presol(presol), _delta(delta)
@@ -87,7 +92,7 @@ class InstatPoissonThetaSchemeCL
       _old_b->SetIdx( _b->RowIdx);
       _cplA->SetIdx( _b->RowIdx); _old_cplA->SetIdx( _b->RowIdx);
       _cplM->SetIdx( _b->RowIdx); _old_cplM->SetIdx( _b->RowIdx);
-      _new_cplA->SetIdx( _b->RowIdx); _new_b->SetIdx( _b->RowIdx);
+     // _new_cplA->SetIdx( _b->RowIdx); _new_b->SetIdx( _b->RowIdx);
       _Poisson.SetupInstatRhs( *_old_cplA, *_old_cplM, _Poisson.x.t, *_old_b, _Poisson.x.t);
       if (_Convection)
       {
@@ -99,7 +104,7 @@ class InstatPoissonThetaSchemeCL
            tmp =new VecDescCL;
            tmp->SetIdx( _b->RowIdx);
            _Poisson.SetupGradSrc( *tmp, _presol, _delta, _Poisson.x.t);
-           _old_b->Data += tmp->Data;
+           _old_b->Data += tmp->Data; 
            delete tmp;
         }
       }
@@ -114,7 +119,6 @@ class InstatPoissonThetaSchemeCL
       delete _cplA; delete _old_cplA;
       delete _cplM; delete _old_cplM;
       delete _cplU;
-      delete _new_cplA; delete _new_b;
     }
 
     double GetTheta()    const { return _theta; }
@@ -128,6 +132,8 @@ class InstatPoissonThetaSchemeCL
     }
 
     void DoStep( VecDescCL& v);
+    void StadScheme( VecDescCL& v);        //standard theta scheme with mass matrix not dependant on time
+    void GeneralScheme   ( VecDescCL& v);  //generalized scheme with mass matirx depends on time
 };
 
 
@@ -141,39 +147,36 @@ class InstatPoissonThetaSchemeCL
 template <class PoissonT, class SolverT>
 void InstatPoissonThetaSchemeCL<PoissonT,SolverT>::DoStep( VecDescCL& v)
 {
+    if(_supg||_ale)
+    {   
+        GeneralScheme(v);       
+    }
+    else 
+        StadScheme(v);
+}
+
+template <class PoissonT, class SolverT>
+void InstatPoissonThetaSchemeCL<PoissonT,SolverT>::StadScheme( VecDescCL& v)
+{
   _Poisson.x.t+= _dt;
+
+  _Poisson.SetupInstatRhs( *_cplA, *_cplM, _Poisson.x.t, *_b, _Poisson.x.t);
+  
   _rhs = _Poisson.A.Data * v.Data;
-  _rhs*= -_dt*(1.0-_theta);
+  _rhs*= -_dt*(1.0-_theta); 
 
   _rhs+=  _dt*(1.0-_theta)*(_old_b->Data)
          +_dt*(1.0-_theta)* _old_cplA->Data;
-  //Update rhs
-  if(_supg||_ale) //update stiffness and massmatrix if necessary
-    _Poisson.SetupInstatSystem( _Poisson.A, _Poisson.M, _Poisson.x.t );
-  _Poisson.SetupInstatRhs( *_cplA, *_cplM, _Poisson.x.t, *_b, _Poisson.x.t);
  if(_presol != NULL)
   {
       VecDescCL *tmp;
       tmp = new VecDescCL;
       tmp->SetIdx( _b->RowIdx);
       _Poisson.SetupGradSrc( *tmp, _presol, _delta, _Poisson.x.t);
-      _b->Data += tmp->Data;
+      _b->Data += tmp->Data; 
       delete tmp;
   }
-
- if(_supg||_ale)
-  {
-      _Poisson.SetupInstatRhs( *_new_cplA, *_old_cplM, _Poisson.x.t-_dt, *_new_b, _Poisson.x.t-_dt);
-      if(_presol != NULL)
-      {
-          VecDescCL *tmp;
-          tmp = new VecDescCL;
-          tmp->SetIdx( _new_b->RowIdx);
-          _Poisson.SetupGradSrc( *tmp, _presol, _delta, _Poisson.x.t);
-          _new_b->Data += tmp->Data;
-          delete tmp;
-      }
-  }
+  
 
   _rhs +=_Poisson.M.Data*v.Data
           -_old_cplM->Data
@@ -194,9 +197,47 @@ void InstatPoissonThetaSchemeCL<PoissonT,SolverT>::DoStep( VecDescCL& v)
 
   std::swap( _b, _old_b);
   std::swap( _cplA, _old_cplA);
-  std::swap( _cplM, _old_cplM);
+  std::swap( _cplM, _old_cplM);    
+    
+    
 }
 
+template <class PoissonT, class SolverT>
+///works only in the case Dirichlet boundary conditions are constant in time;
+void InstatPoissonThetaSchemeCL<PoissonT,SolverT>::GeneralScheme( VecDescCL& v)
+{
+  _Poisson.x.t+= _dt;
+ 
+  _rhs = _Poisson.A.Data * v.Data;
+  _rhs*= -_dt*(1.0-_theta); 
+
+  _rhs+=  _dt*(1.0-_theta)*(_old_b->Data)
+         +_dt*(1.0-_theta)* _old_cplA->Data;
+  //update mass matrix, stiffness matrix for SUPG and ALE, since the test functions change in different steps
+  _Poisson.SetupInstatSystem( _Poisson.A, _Poisson.M, _Poisson.x.t);
+  
+  _Poisson.SetupInstatRhs( *_cplA, *_cplM, _Poisson.x.t, *_b, _Poisson.x.t);
+  
+  _rhs +=_Poisson.M.Data*v.Data
+          +_dt*_theta*_b->Data
+          + _dt*_theta*_cplA->Data;
+
+  if (_Convection)
+  {
+      _rhs+= (_dt*(1.0-_theta)) * (_cplU->Data - _Poisson.U.Data * v.Data );
+      _Poisson.SetupConvection( _Poisson.U, *_cplU, _Poisson.x.t);
+      _rhs+= (_dt*_theta) * _cplU->Data;
+      MLMatrixCL AU;
+      AU.LinComb( 1, _Poisson.A.Data, 1, _Poisson.U.Data);
+      _Lmat.LinComb( 1, _Poisson.M.Data, _dt*_theta, AU);
+  }
+  _solver.Solve( _Lmat, v.Data, _rhs);
+
+  std::swap( _b, _old_b);
+  std::swap( _cplA, _old_cplA);
+  std::swap( _cplM, _old_cplM);    
+    
+}
 
 }    // end of namespace DROPS
 
