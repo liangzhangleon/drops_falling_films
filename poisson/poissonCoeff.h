@@ -137,11 +137,11 @@ class PoissonCoeffCL
 
     static Point3DCL ALEVelocity(const DROPS::Point3DCL& p, double t)
     {
-        double eps =1.0e-7;
+        double eps =0.2*dt_;
         DROPS::Point3DCL ret;
         ret  = Vel(p, t);
-	double interface1 = interface(p, t);
-        ret[1] -= p[1]/interface1*(interface(p, t+eps)-interface1)/eps;  //y/h(p,t)*h_p'(t)
+	double interface1 = interface(p, t-eps);
+        ret[1] -= p[1]/interface1*(interface(p, t+eps)-interface1)/eps/2.0;  //y/h(p,t)*h_p'(t)
         return ret;
     }
 };
