@@ -16,10 +16,11 @@ int boxnumber(double x, double delta, double offset)
 //Calculate a phase-value within [0,L], that is equivalent to the original one.
 double phaseModuloWavelenghtLiangData(double phi, double L)
 {
-  double pL=phi - floor(phi/L + 1.e-14)*L;
-  if(phi > - 1.e-15 && phi <  1.e-15) return 0;
-  else if(pL > - 1.e-15 && pL  < 1.e-15 ) return L;
-  else return pL;
+  //double pL=phi - floor(phi/L + 1.e-14)*L;
+  double pL=phi - floor(phi/L)*L;
+  //if(phi > - 1.e-15 && phi <  1.e-15) return 0;
+  //else if(pL > - 1.e-15 && pL  < 1.e-15 ) return L;
+  return pL;
 }
 
 //Calculate space- ant time-depentent phase (c designates the phase-velocity)
