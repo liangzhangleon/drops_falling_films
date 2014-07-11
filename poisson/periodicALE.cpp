@@ -25,6 +25,8 @@ namespace PeriodicALE {
 
   void setup()
   {
+    
+    std::cout<<"*********setup called*************"<<std::endl;
     pd.NX = P.get<int>("PeriodicData.nx");
     pd.NY = P.get<int>("PeriodicData.ny");
     pd.deltaX = P.get<double>("PeriodicData.dx");
@@ -80,6 +82,17 @@ namespace PeriodicALE {
     return retval;
   }
 
+  double InterfDeriv( const DROPS::Point3DCL& p, double t)
+  {
+    if (first_call)
+      setup();
+
+    //Cubic interpolation of the height-profile via the previously created splines of the reference-height-profile:
+    //compute the derivative
+    double retval = phasederiv1d(p[0],t, acc, heightspline, pd);
+    return retval;
+  }
+  
   //Periodic flowfield translates with a constant phase-velocity in x-direction
   DROPS::Point3DCL Flowfield(const DROPS::Point3DCL& p, double t)
   {
@@ -95,13 +108,26 @@ namespace PeriodicALE {
 
   double InitialValue(const DROPS::Point3DCL&, double)
   {
-    return P.get<double>("BoundaryConcentration.cInitial");
+    static bool first = true;
+    static double cInitial;
+    if(first)
+    {
+      cInitial= P.get<double>("BoundaryConcentration.cInitial");
+      first = false;
+    }
+    return cInitial;
   }
 
   double SurfaceConcentration(const DROPS::Point3DCL& p, double){
-    double einlauf = P.get<double>("BoundaryConcentration.Einlauf");
-    double inlet_concentration = P.get<double>("BoundaryConcentration.cInlet");
-    double surface_concentration = P.get<double>("BoundaryConcentration.cSurface");
+    static bool first = true;
+    static double einlauf, inlet_concentration, surface_concentration;
+    if(first)
+    {
+      einlauf = P.get<double>("BoundaryConcentration.Einlauf");
+      inlet_concentration = P.get<double>("BoundaryConcentration.cInlet");
+      surface_concentration = P.get<double>("BoundaryConcentration.cSurface");
+      first = false;
+    }
     if (p[0]<einlauf) {
       return p[0]*(surface_concentration-inlet_concentration)/einlauf;
     }
@@ -110,11 +136,18 @@ namespace PeriodicALE {
 
   double Diffusion(const DROPS::Point3DCL&, double)
   {
-    return P.get<double>("Exp.Dmol");
+    static bool first = true;
+    if(first)
+    {
+      Dmol= P.get<double>("BoundaryConcentration.cInitial");
+      first = false;
+    }
+    return Dmol;
   }
 
   static DROPS::RegisterScalarFunction regscaa("PeriodicALE_Diffusion",    DROPS::instat_scalar_fun_ptr(Diffusion)    );
   static DROPS::RegisterScalarFunction regscaint("PeriodicALE_Interface",  DROPS::instat_scalar_fun_ptr(Interface)    );
+   static DROPS::RegisterScalarFunction regscader("InterfDeriv",           DROPS::instat_scalar_fun_ptr(InterfDeriv)    );
   static DROPS::RegisterVectorFunction regscav("PeriodicALE_Velocity",     DROPS::instat_vector_fun_ptr(Flowfield)    );
   static DROPS::RegisterScalarFunction regscaf("PeriodicALE_Surface",       DROPS::instat_scalar_fun_ptr(SurfaceConcentration)       );
   //static DROPS::RegisterScalarFunction regscas("PeriodicALE_Inter",         DROPS::instat_scalar_fun_ptr(BInter)     );
