@@ -46,6 +46,7 @@ class PoissonCoeffCL
     static int    nx_, ny_;
     static double dt_;
     static int    Ref_;
+    bool spl;
 
   public:
     //reaction
@@ -62,6 +63,8 @@ class PoissonCoeffCL
     static instat_vector_fun_ptr Vel;
     //Free interface function
     static instat_scalar_fun_ptr interface;
+    
+    static instat_scalar_fun_ptr derivative;
 
     PoissonCoeffCL( ParamCL& P){
         C_=P;
@@ -86,6 +89,8 @@ class PoissonCoeffCL
         else
             Vel = vecmap[P.get<std::string>("PoissonCoeff.Flowfield")];
         interface = scamap[P.get<std::string>("ALE.Interface")];
+        spl = (P.get<std::string>("ALE.Interface") == "PeriodicALE_Interface");
+        derivative = scamap["InterfDeriv"];
         Ref_=P.get<int>("DomainCond.RefineSteps");
     }
     PoissonCoeffCL( ParamCL& P, instat_scalar_fun_ptr diffusion, instat_scalar_fun_ptr source, instat_scalar_fun_ptr init){
@@ -140,8 +145,13 @@ class PoissonCoeffCL
         double eps =0.2*dt_;
         DROPS::Point3DCL ret;
         ret  = Vel(p, t);
-	double interface1 = interface(p, t-eps);
-        ret[1] -= p[1]/interface1*(interface(p, t+eps)-interface1)/eps/2.0;  //y/h(p,t)*h_p'(t)
+        //std::cout<<"**********Debug before**********"<<std::endl;
+	    double h = interface(p, t);
+        if(false)
+          ret[1] -= (p[1]/ h* (-derivative(p, t)));
+        else
+          ret[1] -= p[1]/ h*(interface(p, t+eps)-interface(p, t-eps))/eps/2.0;  //y/h(p,t)*h_p'(t)
+        //std::cout<<"**********Debug after***********"<<std::endl;
         return ret;
     }
 };

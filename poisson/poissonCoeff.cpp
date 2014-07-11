@@ -46,6 +46,7 @@ instat_scalar_fun_ptr PoissonCoeffCL::Solution;
 instat_scalar_fun_ptr PoissonCoeffCL::InitialCondition;
 instat_vector_fun_ptr PoissonCoeffCL::Vel;
 instat_scalar_fun_ptr PoissonCoeffCL::interface;
+instat_scalar_fun_ptr PoissonCoeffCL::derivative;
 }
 
 //======================================================================================================================
