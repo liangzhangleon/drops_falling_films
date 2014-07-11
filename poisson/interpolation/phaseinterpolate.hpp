@@ -18,3 +18,4 @@
 double phaseinterp1d(double x, double t, double* y, const PeriodicData& pd);
 double phaseinterp2d(double x1, double x2, double t, double* y, const PeriodicData& pd);
 double phaseinterp1d(double x, double t, gsl_interp_accel * acc, gsl_spline * y, const PeriodicData& pd);
+double phasederiv1d(double x, double t, gsl_interp_accel * acc, gsl_spline * y, const PeriodicData& pd);

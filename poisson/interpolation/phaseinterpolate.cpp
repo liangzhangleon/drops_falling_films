@@ -26,6 +26,12 @@ double phaseinterp1d(double x, double t, gsl_interp_accel * acc, gsl_spline * y,
   return gsl_spline_eval(y, p2, acc);
 }
 
+double phasederiv1d(double x, double t, gsl_interp_accel * acc, gsl_spline * y, const PeriodicData& pd)
+{
+  double p2 = get_equivalent_phase(x, t, pd);
+  return gsl_spline_eval_deriv(y, p2, acc);
+}
+
 double phaseinterp2d(double x, double y, double t, double* u, const PeriodicData& pd)
 {
   double p2 = get_equivalent_phase(x, t, pd);
