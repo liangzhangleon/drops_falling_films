@@ -26,7 +26,7 @@ namespace PeriodicALE {
   void setup()
   {
     
-    std::cout<<"*********setup called*************"<<std::endl;
+    //std::cout<<"*********setup called*************"<<std::endl;
     pd.NX = P.get<int>("PeriodicData.nx");
     pd.NY = P.get<int>("PeriodicData.ny");
     pd.deltaX = P.get<double>("PeriodicData.dx");
@@ -139,7 +139,7 @@ namespace PeriodicALE {
     static bool first = true;
     if(first)
     {
-      Dmol= P.get<double>("BoundaryConcentration.cInitial");
+      Dmol= P.get<double>("Exp.Dmol");
       first = false;
     }
     return Dmol;
